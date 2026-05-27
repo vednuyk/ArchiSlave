@@ -2,11 +2,17 @@ using UnityEngine;
 
 public class ConstructManager : MonoBehaviour
 {
+
+    private UIManager _uiManager;
     [SerializeField] private BuildingDatabase _database;
 
+    void Awake()
+    {
+        _uiManager = GetComponentInParent<UIManager>();
+    }
     private Grid _targetGrid;
 
-    void OnEnable()  => BuildButton.OnBuildRequested += Build;
+    void OnEnable() => BuildButton.OnBuildRequested += Build;
     void OnDisable() => BuildButton.OnBuildRequested -= Build;
 
     public void SetTargetGrid(Grid grid) => _targetGrid = grid;
@@ -23,6 +29,6 @@ public class ConstructManager : MonoBehaviour
         }
 
         Instantiate(prefab, _targetGrid.transform.position, Quaternion.identity);
-        UIManager.Instance.CloseBuildingPanel();
+        _uiManager.CloseBuildingPanel();
     }
 }

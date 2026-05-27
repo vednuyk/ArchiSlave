@@ -7,19 +7,24 @@ using UnityEngine.EventSystems;
 public class Grid : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IPointerClickHandler
 {
     public static event Action<Grid> OnGridRightClicked;
+
     [SerializeField] private AnimationCurve _bounceCurve;
     [SerializeField] private float _hoverScaleMultiplier = 1.35f;
-    [SerializeField] private float _animDuration = 0.42f;
+    [SerializeField] private float _scaleDuration = 0.42f;
+    [SerializeField] private float _alphaDuration  = 0.15f;
     [SerializeField] private float _baseAlpha = 0.2f;
 
     public int Row { get; private set; }
     public int Col { get; private set; }
 
     private Vector3 _baseScale;
-    private Coroutine _animCoroutine;
+    private Coroutine _scaleCoroutine;
+    private Coroutine _alphaCoroutine;
     private SpriteRenderer _sr;
     private int _baseSortingOrder;
-    private bool _isFullyHovered;
+    private bool _isActivated;
+
+    private static Grid _activeGrid;
 
     public void Initialize(int row, int col, Sprite sprite, Material sharedMat)
     {
@@ -45,61 +50,80 @@ public class Grid : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IP
             _bounceCurve = BuildDefaultCurve();
     }
 
-    public void OnPointerEnter(PointerEventData _) => Animate(_baseScale * _hoverScaleMultiplier, 1f, true);
-    public void OnPointerExit(PointerEventData _)
-    {
-        _isFullyHovered = false;
-        Animate(_baseScale, _baseAlpha, false);
-    }
+    public void OnPointerEnter(PointerEventData _) => AnimateAlpha(1f);
+    public void OnPointerExit(PointerEventData _)  => AnimateAlpha(_baseAlpha);
 
     public void OnPointerClick(PointerEventData eventData)
     {
-        if (eventData.button == PointerEventData.InputButton.Right && _isFullyHovered)
+        if (eventData.button == PointerEventData.InputButton.Left)
+            Activate();
+        else if (eventData.button == PointerEventData.InputButton.Right && _isActivated)
             OnGridRightClicked?.Invoke(this);
     }
 
-    private void Animate(Vector3 targetScale, float targetAlpha, bool isEnter)
+    public void Deactivate()
     {
-        if (_animCoroutine != null) StopCoroutine(_animCoroutine);
-        _animCoroutine = StartCoroutine(AnimateScaleAndAlpha(
-            transform.localScale, targetScale,
-            _sr.color.a, targetAlpha, isEnter));
+        _isActivated = false;
+        if (_activeGrid == this) _activeGrid = null;
+        AnimateScale(_baseScale, false);
     }
 
-    private IEnumerator AnimateScaleAndAlpha(
-        Vector3 fromScale, Vector3 toScale,
-        float fromAlpha, float toAlpha, bool isEnter)
+    private void Activate()
     {
-        // Enter 진행 중 → +2 / Exit 진행 중 → +1
-        _sr.sortingOrder = _baseSortingOrder + (isEnter ? 2 : 1);
+        if (_activeGrid != null && _activeGrid != this)
+            _activeGrid.Deactivate();
 
+        _activeGrid  = this;
+        _isActivated = true;
+        AnimateScale(_baseScale * _hoverScaleMultiplier, true);
+    }
+
+    private void AnimateAlpha(float targetAlpha)
+    {
+        if (_alphaCoroutine != null) StopCoroutine(_alphaCoroutine);
+        _alphaCoroutine = StartCoroutine(AlphaAnim(_sr.color.a, targetAlpha));
+    }
+
+    private void AnimateScale(Vector3 targetScale, bool isEnter)
+    {
+        if (_scaleCoroutine != null) StopCoroutine(_scaleCoroutine);
+        _scaleCoroutine = StartCoroutine(ScaleAnim(transform.localScale, targetScale, isEnter));
+    }
+
+    private IEnumerator AlphaAnim(float fromAlpha, float toAlpha)
+    {
         float elapsed = 0f;
         Color color = _sr.color;
-        while (elapsed < _animDuration)
+        while (elapsed < _alphaDuration)
         {
             elapsed += Time.deltaTime;
-            float t = Mathf.Clamp01(elapsed / _animDuration);
-
-            transform.localScale = Vector3.LerpUnclamped(fromScale, toScale, _bounceCurve.Evaluate(t));
-
-            // Enter: 빠르게 상승 / Exit: 바운싱 타임라인과 함께 서서히 감소
-            float alphaT = isEnter ? Mathf.Clamp01(t * 3.5f) : Mathf.SmoothStep(0f, 1f, t);
-            color.a = Mathf.Lerp(fromAlpha, toAlpha, alphaT);
+            color.a = Mathf.Lerp(fromAlpha, toAlpha, Mathf.Clamp01(elapsed / _alphaDuration));
             _sr.color = color;
             yield return null;
         }
-
-        // 최종 정착
-        transform.localScale = toScale;
         color.a = toAlpha;
         _sr.color = color;
-        // Enter 완료 → +3 / Exit 완료 → 0
-        _sr.sortingOrder = _baseSortingOrder + (isEnter ? 3 : 0);
-        _isFullyHovered = isEnter;
-        _animCoroutine = null;
+        _alphaCoroutine = null;
     }
 
-    // 부드러운 수축 → 오버슈트 → 정착
+    private IEnumerator ScaleAnim(Vector3 fromScale, Vector3 toScale, bool isEnter)
+    {
+        _sr.sortingOrder = _baseSortingOrder + (isEnter ? 2 : 1);
+
+        float elapsed = 0f;
+        while (elapsed < _scaleDuration)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / _scaleDuration);
+            transform.localScale = Vector3.LerpUnclamped(fromScale, toScale, _bounceCurve.Evaluate(t));
+            yield return null;
+        }
+
+        transform.localScale = toScale;
+        _sr.sortingOrder = _baseSortingOrder + (isEnter ? 3 : 0);
+        _scaleCoroutine = null;
+    }
+
     private static AnimationCurve BuildDefaultCurve()
     {
         var curve = new AnimationCurve();
