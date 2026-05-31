@@ -22,13 +22,14 @@
 | `Assets/2_Scripts/Architecture/GridSystem.cs` | 그리드 생성·관리 (rows×cols 배열) |
 | `Assets/2_Scripts/Architecture/ArchitectureManager.cs` | 싱글톤, Grid↔ArchitectureNode 레지스트리 |
 | `Assets/2_Scripts/Architecture/ArchitectureNode.cs` | 노드 베이스 클래스 (BaseScale, AnimateScale, SetSortingOrder) |
-| `Assets/2_Scripts/Architecture/ConstructManager.cs` | 건설 실행, ArchitectureManager 자식으로 배치 |
-| `Assets/2_Scripts/Architecture/BuildingDatabase.cs` | 건물 데이터 SO (id=0: CPU) |
+| `Assets/2_Scripts/Architecture/ConstructManager.cs` | 건설 조정 (선택→BuildingAsk 확인→Yes 건설), BuildingPanel에 부착 |
+| `Assets/2_Scripts/Architecture/BuildingDatabase.cs` | 건물 데이터 SO (id=0: CPU), `GetPrefab`/`GetDisplayName` |
 | `Assets/2_Scripts/Architecture/CPU.cs` | CPU 노드 서브클래스 |
 | `Assets/2_Scripts/UI/UIManager.cs` | B키/우클릭 입력, 패널 열기/닫기/SwitchTo 제어 |
-| `Assets/2_Scripts/UI/UIPanelPopup.cs` | 팝업 패널 애니메이션 (Open/Close/SwitchTo, CanvasGroup) |
-| `Assets/2_Scripts/UI/BuildButton.cs` | 건설 버튼 (static event, _buildingId) |
-| `Assets/2_Scripts/Camera/RTSCameraController.cs` | 엣지 스크롤 + 줌 (New Input System) |
+| `Assets/2_Scripts/UI/UIPanelPopup.cs` | 팝업 패널 애니메이션 (Open/Close/SwitchTo, CanvasGroup, 우/세로 오프셋) |
+| `Assets/2_Scripts/UI/BuildButton.cs` | 건물 선택 버튼 (static event, _buildingId) |
+| `Assets/2_Scripts/UI/BuildingAsk.cs` | 건설 확인창 (Show/OnYes/OnNo, UIPanelPopup 연동) |
+| `Assets/2_Scripts/Camera/RTSCameraController.cs` | WASD 이동 + 휠 줌 (New Input System) |
 
 ---
 
@@ -55,6 +56,7 @@
 | `Assets/1_Sources/IMG/GridFrame.png` | 290×290px 그리드 셀 스프라이트, PPU=100 |
 | `Assets/1_Sources/PSB/CPU.psb` | CPU 스프라이트 PSB (리깅), documentPivot=(0.5,0.5) Center |
 | `Assets/1_Sources/Prefabs/CPU.prefab` | CPU 프리팹 (root+Animator, child Model at (0,0,0)) |
+| `Assets/1_Sources/Prefabs/UI/BuildingAsk.prefab` | 건설 확인창 (BuildingAsk+UIPanelPopup+CanvasGroup, Yes/No, BuildAskInfo TMP) |
 | `Assets/1_Sources/BuildingDatabase.asset` | id=0: CPU |
 | `Assets/GridMaterial.mat` | Sprites/Default, GPU Instancing |
 
@@ -74,13 +76,28 @@ _gridSprite = GridFrame, _gridMaterial = GridMaterial
 
 | 입력 | 동작 |
 |------|------|
+| WASD | 카메라 이동 (마우스 휠 = 줌) |
 | 좌클릭 그리드 | 그리드 활성화 (`OnGridActivated` 발생) |
-| B 키 | BuildingPanel 토글 (활성 그리드 있을 때 열기 / 열린 상태면 닫기) |
+| B 키 | BuildingPanel 토글 (패널만 열고/닫음 — 그리드 활성은 건드리지 않음) |
 | 우클릭 | 뒤로가기 — `Grid.ActiveGrid?.Deactivate()` → `OnGridDeactivated` → 패널 자동 닫힘 |
 | 패널 열린 상태 + 다른 그리드 좌클릭 | SwitchTo로 패널 이동 |
 | 패널 밖 좌클릭 (그리드 위 아님) | 패널 닫기 |
 
 ---
+
+## 건설 흐름 (2026-05-31)
+
+1. 그리드 좌클릭(활성) → B → BuildingPanel 열림
+2. BuildButton(CPU) 클릭 → `OnBuildRequested(id)` → `ConstructManager.OnBuildSelected`가
+   **BuildingAsk 확인창** 표시 (BuildingPanel 위, 살짝 아래 `_panelVerticalOffsetPx=-50`),
+   `"Are you Building {displayName} ??"` (id로 `BuildingDatabase.GetDisplayName` 조회)
+3. **Yes** → BuildingPanel·BuildingAsk **즉시 닫힘** + CPU 생성·Register + 그리드+CPU **bounce**,
+   **그리드는 활성 유지**(비활성화 안 함)
+4. **No** → BuildingAsk만 닫힘 (패널 유지)
+- BuildingAsk는 BuildingPanel이 닫힐 때(B/우클릭) 함께 닫힘 — `ConstructManager.CloseAsk`,
+  `UIManager.CloseBuildingPanel`·`OnAnyGridDeactivated`에서 호출
+- 확인창은 lazy 생성 후 재사용 (`_askInstance`, Canvas 자식, `SetAsLastSibling`)
+- 중복 설치 방지: `ArchitectureManager.HasBuilding`
 
 ## Grid static events / properties
 
@@ -153,6 +170,18 @@ HasBuilding(Grid) → bool
 - ArchitectureNode: `BaseScale`, `AnimateScale(target, dur, curve)`, `SetSortingOrder(order)`
 - Grid: `GetBuilding()` 헬퍼, AnimateHoverScale/AnimateScale에서 빌딩 동기화 호출
 
+### 16. 건설 흐름 개편 + WASD + BuildingAsk (2026-05-31)
+- **B키 버그 수정**: `UIManager.CloseBuildingPanel`에서 `grid.Deactivate()` 제거 → B는 패널만 토글, 그리드 활성 유지
+- **WASD 카메라**: `RTSCameraController` 엣지 스크롤 → `HandleKeyboardMove`(WASD), 휠 줌 유지, `confineCursor` 기본 false
+- **건설 확인창(BuildingAsk)**: `BuildingAsk.cs` 신규. BuildButton 클릭 시 즉시 건설하지 않고 확인창 표시 → Yes만 건설
+  - `BuildingDatabase.GetDisplayName(id)` 추가
+  - 프리팹: 루트 `ConstructManager`→`BuildingAsk`(`_infoText`=BuildAskInfo), Yes/No의 `BuildButton` 제거 후 OnClick=`OnYes`/`OnNo` (execute_code로 자동 연결)
+  - 씬: `ConstructManager`에 `_askPrefab`/`_canvasRoot` 연결
+  - 위치: `UIPanelPopup._panelVerticalOffsetPx` 추가, BuildingAsk=-50 (패널 중앙보다 살짝 아래)
+  - 생명주기: `ConstructManager.CloseAsk` + UIManager 두 닫기 경로에서 호출 → 패널과 함께 닫힘
+- **건설 연출**: `Grid.SyncNewBuilding` — 그리드+CPU를 base→1.35× 함께 bounce (활성 비율 동기화)
+- **Yes 후 처리**: BuildingPanel·BuildingAsk 즉시 닫힘(`ConstructManager.Build`→`_uiManager.CloseBuildingPanel`), 그리드는 bounce 후 **활성 유지**(`DeactivateAfterBounce` 도입했다 롤백)
+
 ---
 
 ## 알려진 이슈 / 주의사항
@@ -167,11 +196,12 @@ HasBuilding(Grid) → bool
 ## 다음 작업 후보
 
 - 설치된 노드 클릭 시 상세 정보/관리 UI
-- 건물 추가 (RAM, GPU 등 id=1, 2...)
+- 건물 추가 (RAM, GPU 등 id=1, 2...) — BuildingDatabase entries + BuildingPanel 버튼 추가
 - 노드 간 연결(엣지) 시각화
-- BuildingPanel UI 디자인 (버튼 레이아웃, 아이콘)
+- BuildingPanel UI 디자인 (버튼 레이아웃, 아이콘, 건물 이름)
 - 그리드 점유 시각화 (건물 있는 그리드 표시)
+- 카메라 이동 경계 클램프 (그리드 밖으로 과도하게 나가지 않게)
 
 ---
 
-*마지막 업데이트: 2026-05-30*
+*마지막 업데이트: 2026-05-31*

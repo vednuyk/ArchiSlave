@@ -128,6 +128,24 @@ public class Grid : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IP
                 0.18f);
     }
 
+    // 새로 설치된 빌딩 — 그리드 셀과 CPU를 함께 bounce시키고, 연출 후 그리드를 정리(비활성화)한다.
+    public void SyncNewBuilding(ArchitectureNode node)
+    {
+        if (node == null) return;
+
+        if (_isActivated)
+        {
+            // 그리드를 base로 리셋한 뒤 그리드+CPU를 함께 base→1.35× bounce. 그리드는 활성 유지.
+            transform.localScale = _baseScale;
+            AnimateScale(_baseScale * _hoverScaleMultiplier, true);
+        }
+        else
+        {
+            node.AnimateScale(node.BaseScale, _scaleDuration, _bounceCurve);
+            node.SetSortingOrder(_baseSortingOrder + 1);
+        }
+    }
+
     private ArchitectureNode GetBuilding() => ArchitectureManager.Instance?.GetBuilding(this);
 
     private IEnumerator AlphaAnim(float fromAlpha, float toAlpha)

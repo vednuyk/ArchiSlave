@@ -12,7 +12,6 @@ GameObject:
   - component: {fileID: 7630466951045369138}
   - component: {fileID: 8402191514815060402}
   - component: {fileID: 3502566718215673251}
-  - component: {fileID: 5856404541892490421}
   m_Layer: 5
   m_Name: No
   m_TagString: Untagged
@@ -122,9 +121,9 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 5856404541892490421}
-        m_TargetAssemblyTypeName: BuildButton, Assembly-CSharp
-        m_MethodName: OnClick
+      - m_Target: {fileID: 8953080883817822512}
+        m_TargetAssemblyTypeName: BuildingAsk, Assembly-CSharp
+        m_MethodName: OnNo
         m_Mode: 0
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -134,19 +133,6 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
---- !u!114 &5856404541892490421
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 776319442947505584}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3925780533c351a47b11b7ff9ae085d6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BuildButton
-  _buildingId: 0
 --- !u!1 &1181486267732218082
 GameObject:
   m_ObjectHideFlags: 0
@@ -239,8 +225,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 24
-  m_fontSizeBase: 24
+  m_fontSize: 15.3
+  m_fontSizeBase: 15.3
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 0
@@ -296,7 +282,6 @@ GameObject:
   - component: {fileID: 2022014854973174201}
   - component: {fileID: 8520253201377982107}
   - component: {fileID: 1834156390009303530}
-  - component: {fileID: 6887508836190145932}
   m_Layer: 5
   m_Name: Yes
   m_TagString: Untagged
@@ -406,9 +391,9 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 6887508836190145932}
-        m_TargetAssemblyTypeName: BuildButton, Assembly-CSharp
-        m_MethodName: OnClick
+      - m_Target: {fileID: 8953080883817822512}
+        m_TargetAssemblyTypeName: BuildingAsk, Assembly-CSharp
+        m_MethodName: OnYes
         m_Mode: 0
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -418,19 +403,6 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
---- !u!114 &6887508836190145932
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1678141708756358898}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3925780533c351a47b11b7ff9ae085d6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BuildButton
-  _buildingId: 0
 --- !u!1 &1977709217878268476
 GameObject:
   m_ObjectHideFlags: 0
@@ -442,9 +414,9 @@ GameObject:
   - component: {fileID: 4180706594378137247}
   - component: {fileID: 5049213979793013784}
   - component: {fileID: 4662442545418334725}
-  - component: {fileID: 891212425576106517}
   - component: {fileID: 5737866719647891274}
   - component: {fileID: 8413180935437702035}
+  - component: {fileID: 8953080883817822512}
   m_Layer: 5
   m_Name: BuildingAsk
   m_TagString: Untagged
@@ -512,19 +484,6 @@ MonoBehaviour:
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1
---- !u!114 &891212425576106517
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1977709217878268476}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1c98300fc8c696040a6e4c49dff95a0b, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ConstructManager
-  _database: {fileID: 11400000, guid: 05d098f441fc90a4ba0b6b4ab7827960, type: 2}
 --- !u!225 &5737866719647891274
 CanvasGroup:
   m_ObjectHideFlags: 0
@@ -550,6 +509,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::UIPanelPopup
   _panelRightOffsetPx: 450
+  _panelVerticalOffsetPx: -100
   _popupDuration: 0.25
   _popdownDuration: 0.18
   _popupCurve:
@@ -618,6 +578,19 @@ MonoBehaviour:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
+--- !u!114 &8953080883817822512
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1977709217878268476}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ca07f4f75595e8e468f5fc3de95dba9d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BuildingAsk
+  _infoText: {fileID: 1323799878527554896}
 --- !u!1 &3226856424895853631
 GameObject:
   m_ObjectHideFlags: 0
@@ -652,7 +625,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 19.2}
+  m_AnchoredPosition: {x: 0, y: 32.7}
   m_SizeDelta: {x: 200, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &411177500949425159
@@ -710,8 +683,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 36
-  m_fontSizeBase: 36
+  m_fontSize: 19.2
+  m_fontSizeBase: 19.2
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
@@ -749,7 +722,7 @@ MonoBehaviour:
   m_VertexBufferAutoSizeReduction: 0
   m_useMaxVisibleDescender: 1
   m_pageToDisplay: 1
-  m_margin: {x: 0, y: 0, z: 0, w: 0}
+  m_margin: {x: -80.650024, y: -22.163452, z: -79.41882, w: -16.006897}
   m_isUsingLegacyAnimationComponent: 0
   m_isVolumetricText: 0
   m_hasFontAssetChanged: 0
@@ -849,8 +822,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 24
-  m_fontSizeBase: 24
+  m_fontSize: 15.3
+  m_fontSizeBase: 15.3
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 0

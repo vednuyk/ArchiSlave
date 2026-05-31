@@ -5,6 +5,7 @@ using UnityEngine;
 public class UIPanelPopup : MonoBehaviour
 {
     [SerializeField] private float _panelRightOffsetPx = 450f;
+    [SerializeField] private float _panelVerticalOffsetPx = 0f;
     [SerializeField] private float _popupDuration      = 0.25f;
     [SerializeField] private float _popdownDuration    = 0.18f;
     [SerializeField] private AnimationCurve _popupCurve;
@@ -124,6 +125,7 @@ public class UIPanelPopup : MonoBehaviour
     {
         Vector2 screenPos = Camera.main.WorldToScreenPoint(worldPos);
         screenPos.x += _panelRightOffsetPx;
+        screenPos.y += _panelVerticalOffsetPx; // 음수 = 아래로
         _rect.position = screenPos;
     }
 

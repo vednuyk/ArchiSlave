@@ -8,10 +8,8 @@ public class RTSCameraController : MonoBehaviour
     [Tooltip("2D 씬이면 체크 (XY 이동 + OrthoSize 줌)\n3D 씬이면 해제 (XZ 이동 + FOV 줌)")]
     public bool is2DMode = true;
 
-    [Header("엣지 스크롤")]
-    [Tooltip("마우스가 화면 가장자리 몇 픽셀 안에 들어올 때 이동 시작")]
-    public float edgeScrollThickness = 20f;
-    [Tooltip("카메라 이동 속도")]
+    [Header("키보드 이동")]
+    [Tooltip("WASD 카메라 이동 속도")]
     public float moveSpeed = 10f;
 
     [Header("줌")]
@@ -24,7 +22,7 @@ public class RTSCameraController : MonoBehaviour
 
     [Header("커서")]
     [Tooltip("게임 실행 중 커서를 창 안에 가두기")]
-    public bool confineCursor = true;
+    public bool confineCursor = false;
 
     [Header("참조")]
     [Tooltip("씬의 CinemachineCamera 오브젝트를 여기에 드래그하세요")]
@@ -43,44 +41,26 @@ public class RTSCameraController : MonoBehaviour
 
     void Update()
     {
-        HandleEdgeScroll();
+        HandleKeyboardMove();
         HandleZoom();
     }
 
-    void HandleEdgeScroll()
+    void HandleKeyboardMove()
     {
-        if (Mouse.current == null) return;
+        if (Keyboard.current == null) return;
 
-        Vector2 mousePos = Mouse.current.position.ReadValue();
+        float horizontal = 0f, vertical = 0f;
 
-        // 창 밖에 있으면 무시
-        if (mousePos.x < 0f || mousePos.x > Screen.width ||
-            mousePos.y < 0f || mousePos.y > Screen.height)
-            return;
+        if (Keyboard.current.aKey.isPressed) horizontal -= 1f;
+        if (Keyboard.current.dKey.isPressed) horizontal += 1f;
+        if (Keyboard.current.wKey.isPressed) vertical   += 1f;
+        if (Keyboard.current.sKey.isPressed) vertical   -= 1f;
 
-        float dx = 0f, dy = 0f, dz = 0f;
+        // 2D: WASD = XY 평면 / 3D: W·S = ±Z, A·D = ±X
+        Vector3 moveDir = is2DMode
+            ? new Vector3(horizontal, vertical, 0f)
+            : new Vector3(horizontal, 0f, vertical);
 
-        if (mousePos.x <= edgeScrollThickness)
-            dx = -1f;
-        else if (mousePos.x >= Screen.width - edgeScrollThickness)
-            dx = 1f;
-
-        if (is2DMode)
-        {
-            if (mousePos.y <= edgeScrollThickness)
-                dy = -1f;
-            else if (mousePos.y >= Screen.height - edgeScrollThickness)
-                dy = 1f;
-        }
-        else
-        {
-            if (mousePos.y <= edgeScrollThickness)
-                dz = -1f;
-            else if (mousePos.y >= Screen.height - edgeScrollThickness)
-                dz = 1f;
-        }
-
-        Vector3 moveDir = new Vector3(dx, dy, dz);
         if (moveDir.sqrMagnitude < 0.01f) return;
 
         transform.Translate(moveDir.normalized * moveSpeed * Time.deltaTime, Space.World);

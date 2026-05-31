@@ -66,6 +66,7 @@ public class UIManager : MonoBehaviour
     {
         if (_currentGrid != grid) return;
         _currentGrid = null;
+        _constructManager.CloseAsk();
         _panel.Close();
     }
 
@@ -84,6 +85,7 @@ public class UIManager : MonoBehaviour
     {
         // 패널만 닫는다. 그리드 활성화 해제는 우클릭(뒤로가기) 전담.
         _currentGrid = null;
+        _constructManager.CloseAsk();
         _panel.Close();
     }
 

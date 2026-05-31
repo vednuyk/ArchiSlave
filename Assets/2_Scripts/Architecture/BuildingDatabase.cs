@@ -13,6 +13,13 @@ public class BuildingDatabase : ScriptableObject
             if (entry.id == id) return entry.prefab;
         return null;
     }
+
+    public string GetDisplayName(int id)
+    {
+        foreach (var entry in entries)
+            if (entry.id == id) return entry.displayName;
+        return "?";
+    }
 }
 
 [Serializable]

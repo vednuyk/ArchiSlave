@@ -802,6 +802,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ConstructManager
   _database: {fileID: 11400000, guid: 05d098f441fc90a4ba0b6b4ab7827960, type: 2}
+  _askPrefab: {fileID: 8953080883817822512, guid: 0e8d08e4e9739dc48bbef7cc705bde93, type: 3}
+  _canvasRoot: {fileID: 614540684}
 --- !u!225 &681468212
 CanvasGroup:
   m_ObjectHideFlags: 0
@@ -998,7 +1000,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RTSCameraController
   is2DMode: 1
-  edgeScrollThickness: 20
   moveSpeed: 10
   zoomSpeed: 2
   minZoom: 2
