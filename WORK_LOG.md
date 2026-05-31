@@ -18,21 +18,33 @@
 
 | 파일 | 역할 |
 |------|------|
-| `Assets/2_Scripts/Architecture/Grid.cs` | 그리드 셀 개별 동작 (호버 팝업, alpha, sorting) |
+| `Assets/2_Scripts/Architecture/Grid.cs` | 그리드 셀 (hover/activate 애니메이션, 빌딩 동기화, static events) |
 | `Assets/2_Scripts/Architecture/GridSystem.cs` | 그리드 생성·관리 (rows×cols 배열) |
+| `Assets/2_Scripts/Architecture/ArchitectureManager.cs` | 싱글톤, Grid↔ArchitectureNode 레지스트리 |
+| `Assets/2_Scripts/Architecture/ArchitectureNode.cs` | 노드 베이스 클래스 (BaseScale, AnimateScale, SetSortingOrder) |
+| `Assets/2_Scripts/Architecture/ConstructManager.cs` | 건설 실행, ArchitectureManager 자식으로 배치 |
+| `Assets/2_Scripts/Architecture/BuildingDatabase.cs` | 건물 데이터 SO (id=0: CPU) |
+| `Assets/2_Scripts/Architecture/CPU.cs` | CPU 노드 서브클래스 |
+| `Assets/2_Scripts/UI/UIManager.cs` | B키/우클릭 입력, 패널 열기/닫기/SwitchTo 제어 |
+| `Assets/2_Scripts/UI/UIPanelPopup.cs` | 팝업 패널 애니메이션 (Open/Close/SwitchTo, CanvasGroup) |
+| `Assets/2_Scripts/UI/BuildButton.cs` | 건설 버튼 (static event, _buildingId) |
 | `Assets/2_Scripts/Camera/RTSCameraController.cs` | 엣지 스크롤 + 줌 (New Input System) |
 
 ---
 
 ## 씬 구성 (GameScene)
 
-| 오브젝트 | 역할 |
-|----------|------|
-| `Main Camera` (instanceID: 51630) | URP Base Camera, Orthographic, CinemachineBrain |
-| `RTSVirtualCamera` (instanceID: 51612) | CinemachineCamera + CinemachineFollow + CinemachineRotationComposer |
-| `CameraTarget` (instanceID: 51658) | 카메라 추적 대상, RTSCameraController 컴포넌트 보유 |
-| `EventSystem` (instanceID: 51622) | InputSystemUIInputModule (New Input System) |
-| `GridSystem` (instanceID: -5778) | 8×12 그리드, GridSystem 컴포넌트 |
+| 오브젝트 | instanceID | 역할 |
+|----------|-----------|------|
+| `Main Camera` | 51730 | URP Base Camera, Orthographic, CinemachineBrain, Physics2DRaycaster |
+| `RTSVirtualCamera` | 51712 | CinemachineCamera + CinemachineFollow (Z=-10) |
+| `CameraTarget` | 51776 | RTSCameraController 부착 |
+| `EventSystem` | 51720 | InputSystemUIInputModule |
+| `GridSystem` | 51802 | 8×12 그리드 |
+| `Canvas` | 51744 | UIManager 컴포넌트 직접 부착 |
+| `BuildingPanel` | 51762 | UIPanelPopup + ConstructManager (_database=BuildingDatabase.asset) |
+| `Button` | 51790 | BuildButton (_buildingId=0), 자식 Text |
+| `ArchitectureManager` | -12408 | 빌딩 레지스트리, 설치된 빌딩들의 부모 |
 
 ---
 
@@ -41,7 +53,10 @@
 | 경로 | 내용 |
 |------|------|
 | `Assets/1_Sources/IMG/GridFrame.png` | 290×290px 그리드 셀 스프라이트, PPU=100 |
-| `Assets/GridMaterial.mat` | Sprite/Default 셰이더, GPU Instancing 활성화 |
+| `Assets/1_Sources/PSB/CPU.psb` | CPU 스프라이트 PSB (리깅), documentPivot=(0.5,0.5) Center |
+| `Assets/1_Sources/Prefabs/CPU.prefab` | CPU 프리팹 (root+Animator, child Model at (0,0,0)) |
+| `Assets/1_Sources/BuildingDatabase.asset` | id=0: CPU |
+| `Assets/GridMaterial.mat` | Sprites/Default, GPU Instancing |
 
 ---
 
@@ -55,88 +70,108 @@ _gridSprite = GridFrame, _gridMaterial = GridMaterial
 
 ---
 
-## 완료된 작업 이력
+## 입력 체계
 
-### 1. 그리드 시스템 초기 구축
-- `Grid.cs` — BoxCollider2D 자동 크기 설정, RequireComponent
-- `GridSystem.cs` — rows/cols 설정 가능, Start() 1회 생성, `Grid[,]` 배열, `GetCell()` API
-
-### 2. MCP 씬 세팅
-- `GridFrame.png` 임포트 설정: Sprite, PPU=100
-- `GridMaterial.mat` 생성: Sprites/Default, GPU Instancing
-- `GridSystem` GameObject 생성 및 컴포넌트 프로퍼티 할당
-
-### 3. 호버 이벤트 시스템 (New Input System 대응)
-- **문제:** `activeInputHandler: 1` (New Input System 전용) → `OnMouseEnter/Exit` 완전 비작동
-- **해결:**
-  - `Grid.cs`: `OnMouseEnter/Exit` → `IPointerEnterHandler / IPointerExitHandler` 구현
-  - `Main Camera`: `Physics2DRaycaster` 컴포넌트 추가
-  - EventSystem에 이미 `InputSystemUIInputModule` 존재 확인
-
-### 4. 카메라 회전 Damping 버그 수정
-- **문제:** `CinemachineRotationComposer.Damping = (0.5, 0.5)` → 카메라 이동 시 회전 래그 발생 → 2D 스프라이트 압축돼 보임 (그리드 축소)
-- **해결:** `CinemachineRotationComposer.Damping` → `(0, 0)`
-
-### 5. 화면 찢김(Screen Tearing) 수정
-- **문제:** `Main Camera.clearFlags = 2 (Depth Only)` → 배경 미클리어 → 카메라 이동 시 잔상/찢김
-- **해결:** `clearFlags` → `1 (Solid Color)`
-- **VSync:** Quality Level 0에서 `vSyncCount: 1` 이미 활성화 확인
-
-### 6. 호버 애니메이션 강화
-- `_hoverScaleMultiplier`: 1.15 → 1.35
-- `_animDuration`: 0.25s → 0.42s
-- `BuildDefaultCurve()` 재설계: 부드러운 수축(t=0.20, y=-0.06) → 큰 오버슈트(t=0.52, y=1.25) → 정착
-
-### 7. Alpha 페이드 구현
-- 기본 Alpha: `0.2f` (`Initialize`에서 `sr.color = Color(1,1,1,0.2)`)
-- Enter: Alpha 빠르게 1.0 상승 (`Clamp01(t * 3.5)` — 약 0.12초)
-- Exit: Alpha 바운싱 전체 시간에 걸쳐 서서히 0.2 감소 (`SmoothStep`)
-
-### 8. Sorting Order 전환 로직
-```
-Enter: 0 →[애니 시작 +2]→ 3(정착)
-Exit:  3 →[애니 시작 +1]→ 0(정착)
-```
-- 인접 셀 동시 전환 시 z-순서 충돌 방지
-- 애니메이션 완료 시점에만 최종값 적용
+| 입력 | 동작 |
+|------|------|
+| 좌클릭 그리드 | 그리드 활성화 (`OnGridActivated` 발생) |
+| B 키 | BuildingPanel 토글 (활성 그리드 있을 때 열기 / 열린 상태면 닫기) |
+| 우클릭 | 뒤로가기 — `Grid.ActiveGrid?.Deactivate()` → `OnGridDeactivated` → 패널 자동 닫힘 |
+| 패널 열린 상태 + 다른 그리드 좌클릭 | SwitchTo로 패널 이동 |
+| 패널 밖 좌클릭 (그리드 위 아님) | 패널 닫기 |
 
 ---
 
-## 현재 Grid.cs 핵심 로직 요약
+## Grid static events / properties
 
 ```csharp
-// 상태별 Sorting Order
-Enter 진행: _baseSortingOrder + 2
-Enter 정착: _baseSortingOrder + 3
-Exit  진행: _baseSortingOrder + 1
-Exit  정착: _baseSortingOrder + 0 (기본)
-
-// Alpha
-기본: 0.2f
-Enter: Clamp01(t * 3.5f) → 빠른 상승
-Exit:  SmoothStep(0,1,t)  → 서서히 감소
-
-// Scale
-_hoverScaleMultiplier = 1.35f, _animDuration = 0.42f
-곡선: t=0→0, t=0.20→-0.06(수축), t=0.52→1.25(오버슈트), t=0.78→0.96, t=1→1
+OnGridActivated(Grid)   // 좌클릭 활성화
+OnGridDeactivated(Grid) // Deactivate() 호출
+ActiveGrid              // 현재 활성화된 Grid (null=없음)
 ```
+
+---
+
+## ArchitectureManager API
+
+```csharp
+Register(Grid, ArchitectureNode)
+Unregister(Grid)
+GetBuilding(Grid) → ArchitectureNode or null
+HasBuilding(Grid) → bool
+```
+
+---
+
+## Grid↔Building 스케일/정렬 동기화
+
+| 상태 | Grid sortingOrder | Building sortingOrder |
+|------|------------------|-----------------------|
+| 기본 | +0 | +1 |
+| Hover | +2~+3 진행 | +1 (스케일만 1.06×) |
+| Activated | +3 | +4 |
+| Deactivated | +0 | +1 |
+
+---
+
+## 완료된 작업 이력
+
+### 1~8. (2026-05-26까지)
+그리드 시스템, MCP 씬 세팅, hover 이벤트, 카메라 버그, 화면 찢김, alpha/scale 애니메이션 완료.
+
+### 9. Grid UX 개선 (2026-05-28)
+- UIPanelPopup Open/Close/SwitchTo 코루틴 완성
+- UIManager Grid.OnGridRightClicked 구독, 패널 외부 좌클릭 닫기
+- ConstructManager BuildButton static event 기반 건설 시스템
+- BuildingDatabase SO (id=0: CPU)
+
+### 10. Grid UX 2차 개선 (2026-05-30)
+- **Hover 미세 스케일** (`_hoverMicroScale=1.06`, SmoothStep 0.18s)
+- **활성화 상태 Alpha/Scale 유지** (`_isHovered` 플래그, `OnPointerExit` early return)
+- **다른 그리드 클릭 시 이전 그리드 alpha 복귀** (`Deactivate()`에서 `!_isHovered → AnimateAlpha(_baseAlpha)`)
+
+### 11. BuildingPanel 동작 개선 (2026-05-30)
+- **패널 SwitchTo 이동**: 다른 그리드 좌클릭 시 `OnGridActivated` → `OnAnyGridActivated` → SwitchTo
+- **IsMouseOverGrid()**: Physics2D.OverlapPoint로 그리드 위 좌클릭 시 닫기 차단
+- `OnGridRightClicked` 제거, `OnGridDeactivated` 추가
+
+### 12. 입력 체계 개편 (2026-05-30)
+- B키 = BuildingPanel 토글
+- 우클릭 = 뒤로가기 (`Grid.ActiveGrid?.Deactivate()`)
+- `Grid.ActiveGrid` public 프로퍼티 노출
+- `UIManager.CloseBuildingPanel`: _currentGrid 먼저 null 처리 (이중 Close 방지)
+
+### 13. ArchitectureManager + ConstructManager (2026-05-30)
+- ArchitectureManager: 싱글톤, Dictionary<Grid, ArchitectureNode> 레지스트리
+- ConstructManager: ArchitectureManager 자식으로 빌딩 배치, HasBuilding 중복 방지
+
+### 14. CPU 위치 수정 (2026-05-30)
+- CPU.prefab Model child position → (0, 0, 0) (기존 (-0.29, -0.62) 제거)
+- CPU.psb.meta: `documentPivot → (0.5, 0.5)`, `documentAlignment → 0 (Center)`, `characterData.pivot → (0.5, 0.5)`
+
+### 15. 빌딩 스케일/정렬 동기화 (2026-05-30)
+- ArchitectureNode: `BaseScale`, `AnimateScale(target, dur, curve)`, `SetSortingOrder(order)`
+- Grid: `GetBuilding()` 헬퍼, AnimateHoverScale/AnimateScale에서 빌딩 동기화 호출
 
 ---
 
 ## 알려진 이슈 / 주의사항
 
 - `CameraTarget`이 Play 모드 전환 시 이전 위치를 기억함 → 카메라가 그리드 밖을 가리킬 수 있음
-- `Grid` 클래스명이 `UnityEngine.Grid`(Tilemap)와 잠재적 충돌 가능 → 향후 namespace `ArchiSlave` 추가 고려
-- `sharedMaterial` 사용 중 → `sr.color` 변경은 per-instance로 처리되므로 배칭에 영향 없음
+- `Grid` 클래스명이 `UnityEngine.Grid`(Tilemap)와 잠재적 충돌 → 향후 namespace `ArchiSlave` 추가 고려
+- `CinemachineFollow.PositionDamping = (1,1,1)` → 카메라 이동에 댐핑 있음, RTS 스타일이면 (0,0,0) 고려
+- CPU.png는 현재 CPU 프리팹에서 사용되지 않음 (CPU.psb가 실제 소스)
 
 ---
 
 ## 다음 작업 후보
 
-- ArchitectureNode 시스템 구현 (노드 배치, 연결)
-- CPU.cs 등 구체적인 노드 타입 구현
-- 그리드 선택(클릭) 기능
+- 설치된 노드 클릭 시 상세 정보/관리 UI
+- 건물 추가 (RAM, GPU 등 id=1, 2...)
+- 노드 간 연결(엣지) 시각화
+- BuildingPanel UI 디자인 (버튼 레이아웃, 아이콘)
+- 그리드 점유 시각화 (건물 있는 그리드 표시)
 
 ---
 
-*마지막 업데이트: 2026-05-26*
+*마지막 업데이트: 2026-05-30*

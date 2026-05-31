@@ -20,6 +20,7 @@ public class ConstructManager : MonoBehaviour
     private void Build(int id)
     {
         if (_targetGrid == null) return;
+        if (ArchitectureManager.Instance.HasBuilding(_targetGrid)) return;
 
         var prefab = _database.GetPrefab(id);
         if (prefab == null)
@@ -28,7 +29,17 @@ public class ConstructManager : MonoBehaviour
             return;
         }
 
-        Instantiate(prefab, _targetGrid.transform.position, Quaternion.identity);
+        var go = Instantiate(
+            prefab,
+            _targetGrid.transform.position,
+            Quaternion.identity,
+            ArchitectureManager.Instance.transform
+        );
+
+        var node = go.GetComponent<ArchitectureNode>();
+        if (node != null)
+            ArchitectureManager.Instance.Register(_targetGrid, node);
+
         _uiManager.CloseBuildingPanel();
     }
 }

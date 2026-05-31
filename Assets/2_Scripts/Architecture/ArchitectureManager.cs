@@ -1,16 +1,20 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 public class ArchitectureManager : MonoBehaviour
 {
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
-    {
-        
-    }
+    public static ArchitectureManager Instance { get; private set; }
 
-    // Update is called once per frame
-    void Update()
-    {
-        
-    }
+    private readonly Dictionary<Grid, ArchitectureNode> _buildings = new();
+
+    void Awake() => Instance = this;
+
+    public void Register(Grid grid, ArchitectureNode node) => _buildings[grid] = node;
+
+    public void Unregister(Grid grid) => _buildings.Remove(grid);
+
+    public ArchitectureNode GetBuilding(Grid grid) =>
+        _buildings.TryGetValue(grid, out var node) ? node : null;
+
+    public bool HasBuilding(Grid grid) => _buildings.ContainsKey(grid);
 }

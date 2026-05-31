@@ -6,10 +6,13 @@ using UnityEngine.EventSystems;
 [RequireComponent(typeof(SpriteRenderer), typeof(BoxCollider2D))]
 public class Grid : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IPointerClickHandler
 {
-    public static event Action<Grid> OnGridRightClicked;
+    public static event Action<Grid> OnGridActivated;
+    public static event Action<Grid> OnGridDeactivated;
+    public static Grid ActiveGrid => _activeGrid;
 
     [SerializeField] private AnimationCurve _bounceCurve;
     [SerializeField] private float _hoverScaleMultiplier = 1.35f;
+    [SerializeField] private float _hoverMicroScale = 1.06f;
     [SerializeField] private float _scaleDuration = 0.42f;
     [SerializeField] private float _alphaDuration  = 0.15f;
     [SerializeField] private float _baseAlpha = 0.2f;
@@ -23,6 +26,7 @@ public class Grid : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IP
     private SpriteRenderer _sr;
     private int _baseSortingOrder;
     private bool _isActivated;
+    private bool _isHovered;
 
     private static Grid _activeGrid;
 
@@ -50,15 +54,25 @@ public class Grid : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IP
             _bounceCurve = BuildDefaultCurve();
     }
 
-    public void OnPointerEnter(PointerEventData _) => AnimateAlpha(1f);
-    public void OnPointerExit(PointerEventData _)  => AnimateAlpha(_baseAlpha);
+    public void OnPointerEnter(PointerEventData _)
+    {
+        _isHovered = true;
+        AnimateAlpha(1f);
+        if (!_isActivated) AnimateHoverScale(true);
+    }
+
+    public void OnPointerExit(PointerEventData _)
+    {
+        _isHovered = false;
+        if (_isActivated) return;
+        AnimateAlpha(_baseAlpha);
+        AnimateHoverScale(false);
+    }
 
     public void OnPointerClick(PointerEventData eventData)
     {
         if (eventData.button == PointerEventData.InputButton.Left)
             Activate();
-        else if (eventData.button == PointerEventData.InputButton.Right && _isActivated)
-            OnGridRightClicked?.Invoke(this);
     }
 
     public void Deactivate()
@@ -66,6 +80,8 @@ public class Grid : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IP
         _isActivated = false;
         if (_activeGrid == this) _activeGrid = null;
         AnimateScale(_baseScale, false);
+        if (!_isHovered) AnimateAlpha(_baseAlpha);
+        OnGridDeactivated?.Invoke(this);
     }
 
     private void Activate()
@@ -76,6 +92,7 @@ public class Grid : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IP
         _activeGrid  = this;
         _isActivated = true;
         AnimateScale(_baseScale * _hoverScaleMultiplier, true);
+        OnGridActivated?.Invoke(this);
     }
 
     private void AnimateAlpha(float targetAlpha)
@@ -88,7 +105,30 @@ public class Grid : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IP
     {
         if (_scaleCoroutine != null) StopCoroutine(_scaleCoroutine);
         _scaleCoroutine = StartCoroutine(ScaleAnim(transform.localScale, targetScale, isEnter));
+
+        var node = GetBuilding();
+        if (node != null)
+        {
+            float mul = isEnter ? _hoverScaleMultiplier : 1f;
+            node.AnimateScale(node.BaseScale * mul, _scaleDuration, _bounceCurve);
+            node.SetSortingOrder(_baseSortingOrder + (isEnter ? 4 : 1));
+        }
     }
+
+    private void AnimateHoverScale(bool entering)
+    {
+        if (_scaleCoroutine != null) StopCoroutine(_scaleCoroutine);
+        Vector3 target = entering ? _baseScale * _hoverMicroScale : _baseScale;
+        _scaleCoroutine = StartCoroutine(HoverScaleAnim(transform.localScale, target));
+
+        var node = GetBuilding();
+        if (node != null)
+            node.AnimateScale(
+                entering ? node.BaseScale * _hoverMicroScale : node.BaseScale,
+                0.18f);
+    }
+
+    private ArchitectureNode GetBuilding() => ArchitectureManager.Instance?.GetBuilding(this);
 
     private IEnumerator AlphaAnim(float fromAlpha, float toAlpha)
     {
@@ -121,6 +161,20 @@ public class Grid : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IP
 
         transform.localScale = toScale;
         _sr.sortingOrder = _baseSortingOrder + (isEnter ? 3 : 0);
+        _scaleCoroutine = null;
+    }
+
+    private IEnumerator HoverScaleAnim(Vector3 from, Vector3 to)
+    {
+        float dur = 0.18f, elapsed = 0f;
+        while (elapsed < dur)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / dur));
+            transform.localScale = Vector3.Lerp(from, to, t);
+            yield return null;
+        }
+        transform.localScale = to;
         _scaleCoroutine = null;
     }
 
